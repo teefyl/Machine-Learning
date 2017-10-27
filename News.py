@@ -1,106 +1,99 @@
-from sklearn import datasets
-from sklearn.model_selection import cross_val_predict
 from sklearn import linear_model
 from sklearn import tree
-from sklearn import svm
 from scipy.linalg import norm
 from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
-import matplotlib.pyplot as plt
+from sklearn import preprocessing
 import pandas as pd 
 import numpy as np 
 from numpy import median
 import math
+import time
+import os, psutil
+
+ 
+def whichAlgorithm(x):
+    return {
+        0:'Linear Regression' ,
+        1:'Bayesian Ridge',
+        2:'SGD Regression',
+        3:'Decision Tree Regression'
+    }[x]
+
+def norm(arr):
+    oldMax = max(arr)
+    oldMin = min(arr)
+    oldRange = oldMax - oldMin
+    newMin = 0
+    newMax = 1
+    normalisedArray = np.array([(newMin + (((x-oldMin)*(newMax-newMin)))/(oldMax - oldMin)) for x in arr])
+    return normalisedArray   
 
 
-def runProgram(rows, cols, kFoldVariable):
-    lnr = linear_model.LinearRegression()
-    rdg = linear_model.BayesianRidge()
-    sgd = linear_model.SGDRegressor()
-    clf = tree.DecisionTreeRegressor()
-    
-
-    algorithm= np.array([lnr, rdg, sgd,  clf])
-    for i in range(0, len(algorithm)):
-
-        print("Current Algorithm: ", str(algorithm[i]))
-
+def runProgram(given, pred, kFoldVariable, algo):
+        start = time.time()
        
-        explainedVarianceScore = cross_val_score(algorithm[i],  rows, cols, cv=kFoldVariable, scoring= 'explained_variance')
-        print("Explained Variance Score: ", explainedVarianceScore) 
-
+        explainedVarianceScore = cross_val_score(algo,  given, pred, cv=kFoldVariable, scoring= 'explained_variance')
+        explainedVarianceFinal = (norm(explainedVarianceScore)).mean()
+        print("Explained Variance Score: ", (explainedVarianceFinal)) 
         
-        meanAbsoluteError = cross_val_score(algorithm[i],  rows, cols, cv=kFoldVariable, scoring= 'neg_mean_absolute_error')
-        meanAbsoluteErrorFinal = abs(meanAbsoluteError.mean())
-        print("Mean Absolute Error: ", meanAbsoluteErrorFinal )
-
+        meanAbsoluteError = cross_val_score(algo,  given, pred, cv=kFoldVariable, scoring= 'neg_mean_absolute_error')
+        meanAbsoluteErrorNorm = norm(meanAbsoluteError)
+        meanAbsoluteErrorFinal = abs(meanAbsoluteErrorNorm.mean())
+        print("Mean Absolute Error: ", (meanAbsoluteErrorFinal))
        
-        meanSquaredError = cross_val_score(algorithm[i],  rows, cols, cv=kFoldVariable, scoring= 'neg_mean_squared_error')
-        meanSquaredErrorFinal = abs(meanSquaredError.mean())
+        meanSquaredError = cross_val_score(algo,  given, pred, cv=kFoldVariable, scoring= 'neg_mean_squared_error')
+        meanSquaredErrorNorm = norm(meanSquaredError)
+        meanSquaredErrorFinal = abs(meanSquaredErrorNorm.mean())
         print("Mean Squared Error: ", meanSquaredErrorFinal)
-
-        
-        medianAbsoluteError = cross_val_score(algorithm[i],  rows, cols, cv=kFoldVariable, scoring= 'neg_median_absolute_error')
-        medianAbsoluteErrorFinal = abs(median(medianAbsoluteError))
+  
+        medianAbsoluteError = cross_val_score(algo,  given, pred, cv=kFoldVariable, scoring= 'neg_median_absolute_error')
+        medianAbsoluteErrorNorm = norm(medianAbsoluteError)
+        medianAbsoluteErrorFinal = abs(median(medianAbsoluteErrorNorm))
         print("Median Absolute Error: ", medianAbsoluteErrorFinal)
 
+        r2 = cross_val_score(algo,  given, pred, cv=kFoldVariable, scoring='r2')
+        r2Norm = norm(r2)
+        r2Final = r2Norm.mean()
+        print("r2: ", r2Final)
+
+        elapsed = time.time()-start
+        print("Time elapsed:", elapsed)
         
-        r2 = cross_val_score(algorithm[i],  rows, cols, cv=kFoldVariable, scoring='r2')
-        print("r2: ", r2)
-
-
-
-
-
-
-
-newsFile = "news.csv"
-news = pd.read_csv(newsFile, header=0)
-news = news.drop('url',  axis = 1)
-
-#print(news.columns)
-houseSalesFiles= "house.csv"
-houseSales = pd.read_csv(houseSalesFiles, header=0)
-houseSales.drop('id', axis=1)
-
-
-R1 = np.array(news)
-R1 = R1[:, :-1]
-C1 = np.array(news)
-C1 = C1[:, -1]
-R1 = R1.astype('int') ##all data in columns are ints
-C1 = C1.astype('int')
+        
 
 
 kF= KFold(n_splits=10)
-
-print("News")
-runProgram(R1, C1, kF)
-
-
-
-
-
-
+newsFile = "news.csv"
+news = pd.read_csv(newsFile, header=0)
+news = news.drop('url',  axis = 1)
+g = np.array(news)
+g = g[:, :-1]
+p = np.array(news)
+p = p[:, -1]
 
 
+lnr = linear_model.LinearRegression()
+rdg = linear_model.BayesianRidge()
+sgd = linear_model.SGDRegressor()
+dtr = tree.DecisionTreeRegressor()
+i=0 
+print("Current Algorithm Running: ", whichAlgorithm(i))
+runProgram(g, p, kF, lnr)
+i+=1
+print("Current Algorithm Running: ", whichAlgorithm(i))
+runProgram(g, p, kF, rdg)
+i+=1
+print("Current Algorithm Running: ", whichAlgorithm(i))
+runProgram(g, p, kF, sgd)
+i+=1
+print("Current Algorithm Running: ", whichAlgorithm(i))
+runProgram(g, p, kF, dtr)
 
 
-#raw_data = {'first_name': ['Jason', 'Molly', 'Tina', 'Jake', 'Amy'], 
-#       'last_name': ['Miller', 'Jacobson', ".", 'Milner', 'Cooze'], 
-#      'age': [42, 52, 36, 24, 73], 
-#     'preTestScore': [4, 24, 31, ".", "."],
-#    'postTestScore': ["25,000", "94,000", 57, 62, 70]}
+#process = psutil.Process(os.getpid())
+#process.get_ext_memory_info().peak_wset
+#print p.get_memory_percent()
 
 
-
-#df = pd.DataFrame(raw_data, columns = ['first_name', 'last_name', 'age', 'preTestScore', 'postTestScore'])
-#df.to_csv('"task3, team_46, cherry evaluation, data.csv"')
-#predicted = cross_val_predict(lr, news.data, y, cv=10)
-#fig, ax = plt.subplots()
-#ax.scatter(y, predicted, edgecolors=(0, 0, 0))
-#ax.plot([y.min(), y.max()], [y.min(), y.max()], 'k--', lw=4)
-#ax.set_xlabel('Measured')
-#ax.set_ylabel('Predicted')
-#plt.show()
 
